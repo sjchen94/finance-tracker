@@ -9,7 +9,7 @@ export default function Home() {
             Finance Tracker
           </h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Live quotes from Yahoo Finance. Add tickers to your watchlist — refreshes every 30s.
+            Live quotes from Yahoo Finance. Add tickers to your watchlist — refreshes every 30s. Click any row to open its chart.
           </p>
         </header>
         <Watchlist />

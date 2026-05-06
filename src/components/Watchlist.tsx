@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Quote = {
@@ -124,21 +125,32 @@ export default function Watchlist() {
         {quotes.map((q) => {
           const isUp = (q.change ?? 0) >= 0;
           return (
-            <li key={q.symbol} className="flex items-center gap-4 px-4 py-3">
-              <div className="flex-1 min-w-0">
-                <div className="font-mono text-sm font-semibold">{q.symbol}</div>
-                <div className="text-xs text-black/60 dark:text-white/60 truncate">{q.shortName}</div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-sm">
-                  {q.price !== null ? q.price.toFixed(2) : "—"} {q.currency}
+            <li key={q.symbol} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
+              <Link
+                href={`/ticker/${encodeURIComponent(q.symbol)}`}
+                className="flex flex-1 items-center gap-4 min-w-0 group"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-mono text-sm font-semibold">{q.symbol}</div>
+                  <div className="text-xs text-black/60 dark:text-white/60 truncate">{q.shortName}</div>
                 </div>
-                <div className={`font-mono text-xs ${isUp ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                  {q.change !== null && q.changePercent !== null
-                    ? `${isUp ? "+" : ""}${q.change.toFixed(2)} (${isUp ? "+" : ""}${q.changePercent.toFixed(2)}%)`
-                    : "—"}
+                <div className="text-right">
+                  <div className="font-mono text-sm">
+                    {q.price !== null ? q.price.toFixed(2) : "—"} {q.currency}
+                  </div>
+                  <div className={`font-mono text-xs ${isUp ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {q.change !== null && q.changePercent !== null
+                      ? `${isUp ? "+" : ""}${q.change.toFixed(2)} (${isUp ? "+" : ""}${q.changePercent.toFixed(2)}%)`
+                      : "—"}
+                  </div>
                 </div>
-              </div>
+                <span
+                  className="ml-2 hidden sm:inline-flex items-center gap-1 rounded-md border border-black/10 dark:border-white/15 px-2 py-1 text-xs text-black/70 dark:text-white/70 group-hover:bg-black/5 dark:group-hover:bg-white/5"
+                  aria-hidden
+                >
+                  Chart →
+                </span>
+              </Link>
               <button
                 onClick={() => removeSymbol(q.symbol)}
                 className="text-xs text-black/40 hover:text-red-500 dark:text-white/40"
