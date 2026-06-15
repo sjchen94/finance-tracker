@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { provider } from "@/lib/providers";
-import type { HistoryInterval, HistoryRange } from "@/lib/providers/types";
+import {
+  DEFAULT_INTERVAL,
+  type HistoryInterval,
+  type HistoryRange,
+} from "@/lib/providers/types";
 import { computeIndicators } from "@/lib/indicators";
 import { readCache, writeCache } from "@/lib/cache";
 
@@ -28,17 +32,6 @@ const VALID_INTERVALS: HistoryInterval[] = [
   "1wk",
   "1mo",
 ];
-
-const DEFAULT_INTERVAL: Record<HistoryRange, HistoryInterval> = {
-  "1d": "5m",
-  "5d": "30m",
-  "1mo": "1d",
-  "3mo": "1d",
-  "6mo": "1d",
-  "1y": "1d",
-  "5y": "1wk",
-  max: "1mo",
-};
 
 export async function GET(req: NextRequest) {
   const symbolRaw = req.nextUrl.searchParams.get("symbol");

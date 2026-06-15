@@ -33,16 +33,12 @@ function loadInitialSymbols(): string[] {
 }
 
 export default function Watchlist() {
-  const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
+  const [symbols, setSymbols] = useState<string[]>(loadInitialSymbols);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-
-  useEffect(() => {
-    setSymbols(loadInitialSymbols());
-  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -51,11 +47,8 @@ export default function Watchlist() {
   }, [symbols]);
 
   useEffect(() => {
+    if (symbols.length === 0) return;
     let cancelled = false;
-    if (symbols.length === 0) {
-      setQuotes([]);
-      return;
-    }
 
     async function fetchQuotes() {
       setLoading(true);
@@ -91,7 +84,9 @@ export default function Watchlist() {
   }
 
   function removeSymbol(symbol: string) {
-    setSymbols(symbols.filter((s) => s !== symbol));
+    const next = symbols.filter((s) => s !== symbol);
+    setSymbols(next);
+    if (next.length === 0) setQuotes([]);
   }
 
   return (

@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { provider } from "@/lib/providers";
-import type {
-  HistoryInterval,
-  HistoryRange,
-} from "@/lib/providers/types";
+import { DEFAULT_INTERVAL, type HistoryRange } from "@/lib/providers/types";
 import { computeIndicators } from "@/lib/indicators";
 import { readCache, writeCache } from "@/lib/cache";
 import PriceChart from "@/components/PriceChart";
@@ -12,17 +9,6 @@ import PriceChart from "@/components/PriceChart";
 export const dynamic = "force-dynamic";
 
 const RANGES: HistoryRange[] = ["1mo", "3mo", "6mo", "1y", "5y", "max"];
-
-const DEFAULT_INTERVAL: Record<HistoryRange, HistoryInterval> = {
-  "1d": "5m",
-  "5d": "30m",
-  "1mo": "1d",
-  "3mo": "1d",
-  "6mo": "1d",
-  "1y": "1d",
-  "5y": "1wk",
-  max: "1mo",
-};
 
 type PageProps = {
   params: Promise<{ symbol: string }>;
