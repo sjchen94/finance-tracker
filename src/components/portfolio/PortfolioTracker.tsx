@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import PortfolioRiskMetrics from "./PortfolioRiskMetrics";
+import PortfolioAllocationChart from "./PortfolioAllocationChart";
 
 type Holding = {
   id: string;
@@ -44,6 +45,52 @@ function fmtCurrency(v: number): string {
 function fmtPct(v: number): string {
   const sign = v >= 0 ? "+" : "";
   return `${sign}${v.toFixed(2)}%`;
+}
+
+function exportCsv(
+  rows: Array<{
+    ticker: string;
+    shares: number;
+    costBasis: number;
+    currentPrice: number | null;
+    currentValue: number | null;
+    totalCost: number;
+    pnl: number | null;
+    pnlPct: number | null;
+  }>,
+): void {
+  const header = [
+    "Ticker",
+    "Shares",
+    "Avg Cost / Share",
+    "Current Price",
+    "Market Value",
+    "Total Cost",
+    "P&L",
+    "% Gain",
+  ];
+  const csvRows = rows.map((r) =>
+    [
+      r.ticker,
+      r.shares,
+      r.costBasis.toFixed(2),
+      r.currentPrice != null ? r.currentPrice.toFixed(2) : "",
+      r.currentValue != null ? r.currentValue.toFixed(2) : "",
+      r.totalCost.toFixed(2),
+      r.pnl != null ? r.pnl.toFixed(2) : "",
+      r.pnlPct != null ? r.pnlPct.toFixed(2) : "",
+    ].join(","),
+  );
+
+  const csv = [header.join(","), ...csvRows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const date = new Date().toISOString().slice(0, 10);
+  a.download = `portfolio-${date}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function PortfolioTracker() {
@@ -218,9 +265,18 @@ export default function PortfolioTracker() {
         <section className="rounded-lg border border-black/10 bg-white dark:border-white/10 dark:bg-zinc-950">
           <header className="flex items-center justify-between border-b border-black/10 px-4 py-3 dark:border-white/10">
             <h2 className="font-mono text-sm font-semibold">Holdings</h2>
-            {loadingPrices && (
-              <span className="text-xs text-zinc-400">Refreshing prices…</span>
-            )}
+            <div className="flex items-center gap-3">
+              {loadingPrices && (
+                <span className="text-xs text-zinc-400">Refreshing prices…</span>
+              )}
+              <button
+                onClick={() => exportCsv(rows)}
+                className="inline-flex items-center gap-1 rounded border border-black/15 bg-zinc-50 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100 dark:border-white/15 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                title="Export holdings to CSV"
+              >
+                ↓ CSV
+              </button>
+            </div>
           </header>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -323,6 +379,11 @@ export default function PortfolioTracker() {
             </table>
           </div>
         </section>
+      )}
+
+      {/* Portfolio Allocation Chart — shown once there are holdings */}
+      {holdings.length > 0 && (
+        <PortfolioAllocationChart rows={rows} />
       )}
 
       {/* Portfolio Risk Metrics — only shown when there are holdings with prices */}
