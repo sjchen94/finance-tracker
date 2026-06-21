@@ -6,6 +6,16 @@ export const dynamic = "force-dynamic";
 
 const client = new Anthropic();
 
+export type PortfolioHoldingContext = {
+  ticker: string;
+  shares: number;
+  costBasis: number;
+  currentPrice: number | null;
+  currentValue: number | null;
+  pnlPct: number | null;
+  allocationPct: number | null;
+};
+
 export type InsightRequest = {
   sectors: Array<{
     name: string;
@@ -23,6 +33,12 @@ export type InsightRequest = {
     spy: { price: number | null; changePercent: number | null } | null;
     qqq: { price: number | null; changePercent: number | null } | null;
     vix: { price: number | null; changePercent: number | null } | null;
+  };
+  /** Optional: user portfolio context for personalised portfolio digest */
+  portfolioContext?: {
+    holdings: PortfolioHoldingContext[];
+    totalValue: number | null;
+    totalPnlPct: number | null;
   };
 };
 
@@ -66,7 +82,63 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { sectors, marketIndicators } = body;
+  const { sectors, marketIndicators, portfolioContext } = body;
+
+  // --- Portfolio-mode: personalised digest ---
+  if (portfolioContext && portfolioContext.holdings.length > 0) {
+    const { holdings, totalValue, totalPnlPct } = portfolioContext;
+
+    const holdingLines = holdings
+      .map((h) => {
+        const pnl = h.pnlPct != null ? `${h.pnlPct >= 0 ? "+" : ""}${h.pnlPct.toFixed(1)}%` : "N/A";
+        const alloc = h.allocationPct != null ? `${h.allocationPct.toFixed(1)}%` : "?";
+        const price = h.currentPrice != null ? `$${h.currentPrice.toFixed(2)}` : "N/A";
+        return `${h.ticker}: ${h.shares} shares @ cost $${h.costBasis.toFixed(2)}, now ${price}, P&L ${pnl}, allocation ${alloc}`;
+      })
+      .join("\n");
+
+    const portfolioLine =
+      totalValue != null
+        ? `Total portfolio value: $${totalValue.toFixed(2)}${totalPnlPct != null ? `, overall P&L: ${totalPnlPct >= 0 ? "+" : ""}${totalPnlPct.toFixed(1)}%` : ""}`
+        : "";
+
+    const marketLine = [
+      `SPY ${marketIndicators.spy?.changePercent != null ? (marketIndicators.spy.changePercent >= 0 ? "+" : "") + marketIndicators.spy.changePercent.toFixed(2) + "%" : "N/A"}`,
+      `QQQ ${marketIndicators.qqq?.changePercent != null ? (marketIndicators.qqq.changePercent >= 0 ? "+" : "") + marketIndicators.qqq.changePercent.toFixed(2) + "%" : "N/A"}`,
+      `VIX ${marketIndicators.vix?.price != null ? marketIndicators.vix.price.toFixed(1) : "N/A"}`,
+    ].join(", ");
+
+    const portfolioDataText = [
+      portfolioLine,
+      `Market today: ${marketLine}`,
+      `Holdings:\n${holdingLines}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      const message = await client.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 300,
+        system:
+          "You are a personal portfolio analyst. Given a user's holdings with cost basis, current prices, and today's market conditions, write 3-4 concise sentences as a Portfolio Digest: highlight which positions are performing well or poorly relative to the market, note any concentration risks, and give one specific observation. Be direct. No bullet points.",
+        messages: [
+          {
+            role: "user",
+            content: `My portfolio today:\n${portfolioDataText}\n\nWrite a 3-4 sentence Portfolio Digest.`,
+          },
+        ],
+      });
+
+      const text =
+        message.content[0]?.type === "text" ? message.content[0].text : "";
+      return NextResponse.json({ insight: text });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Claude API error";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
+
 
   // Build a concise text summary of the current market state
   const topSectors = [...sectors]

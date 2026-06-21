@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import PortfolioRiskMetrics from "./PortfolioRiskMetrics";
 import PortfolioAllocationChart from "./PortfolioAllocationChart";
+import PortfolioInsight from "./PortfolioInsight";
+import ScenarioEditor from "./ScenarioEditor";
 
 type Holding = {
   id: string;
@@ -389,6 +391,23 @@ export default function PortfolioTracker() {
       {/* Portfolio Risk Metrics — only shown when there are holdings with prices */}
       {holdings.length > 0 && (
         <PortfolioRiskMetrics holdings={holdings} prices={prices} />
+      )}
+
+      {/* AI Portfolio Digest — auto-fetches on load when live prices are available */}
+      {holdings.length > 0 && (
+        <PortfolioInsight
+          rows={rows}
+          totalValue={totalValue}
+          totalPnlPct={totalPnlPct}
+        />
+      )}
+
+      {/* What-If Scenario Simulator — opened on demand */}
+      {holdings.length > 0 && (
+        <ScenarioEditor
+          holdings={holdings}
+          prices={prices}
+        />
       )}
 
       <p className="text-[10px] text-zinc-400">
