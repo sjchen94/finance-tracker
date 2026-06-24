@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import HeaderBar from "./HeaderBar";
 import Leaderboard from "./Leaderboard";
 import SectorCard from "./SectorCard";
+import SectorTreemap from "./SectorTreemap";
+import DividendCalendar from "./DividendCalendar";
 import FilterBar from "./FilterBar";
 import InsightPanel from "./InsightPanel";
 import StreakWidget from "./StreakWidget";
@@ -184,6 +186,12 @@ export default function MomentumDashboard() {
             onResults={setHighlightedSymbols}
             highlightedSymbols={highlightedSymbols}
           />
+
+          {/* Sector Heatmap Treemap */}
+          <SectorTreemap sectors={filteredSectors} />
+
+          {/* Dividend Calendar & Yield Tracker */}
+          <DividendCalendar />
 
           <section>
             <header className="mb-2 flex items-baseline justify-between">
