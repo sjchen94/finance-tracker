@@ -15,7 +15,7 @@ export type RiskMetrics = {
 };
 
 /** Compute array of daily log-returns from a price series. */
-function logReturns(prices: number[]): number[] {
+export function logReturns(prices: number[]): number[] {
   const returns: number[] = [];
   for (let i = 1; i < prices.length; i++) {
     const prev = prices[i - 1];
@@ -27,19 +27,19 @@ function logReturns(prices: number[]): number[] {
   return returns;
 }
 
-function mean(arr: number[]): number {
+export function mean(arr: number[]): number {
   if (arr.length === 0) return 0;
   return arr.reduce((s, v) => s + v, 0) / arr.length;
 }
 
-function stddev(arr: number[], mu?: number): number {
+export function stddev(arr: number[], mu?: number): number {
   if (arr.length < 2) return 0;
   const m = mu ?? mean(arr);
   const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);
   return Math.sqrt(variance);
 }
 
-function covariance(a: number[], b: number[]): number {
+export function covariance(a: number[], b: number[]): number {
   const n = Math.min(a.length, b.length);
   if (n < 2) return 0;
   const ma = mean(a.slice(0, n));
@@ -49,6 +49,21 @@ function covariance(a: number[], b: number[]): number {
     cov += (a[i] - ma) * (b[i] - mb);
   }
   return cov / (n - 1);
+}
+
+/**
+ * Compute Pearson correlation coefficient between two return series.
+ * Aligns to the shorter length. Returns null when there is insufficient data.
+ */
+export function pearsonCorrelation(a: number[], b: number[]): number | null {
+  const n = Math.min(a.length, b.length);
+  if (n < 5) return null;
+  const aSlice = a.slice(a.length - n);
+  const bSlice = b.slice(b.length - n);
+  const sdA = stddev(aSlice);
+  const sdB = stddev(bSlice);
+  if (sdA === 0 || sdB === 0) return null;
+  return covariance(aSlice, bSlice) / (sdA * sdB);
 }
 
 /**

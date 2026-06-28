@@ -5,6 +5,8 @@ import PortfolioRiskMetrics from "./PortfolioRiskMetrics";
 import PortfolioAllocationChart from "./PortfolioAllocationChart";
 import PortfolioInsight from "./PortfolioInsight";
 import ScenarioEditor from "./ScenarioEditor";
+import CorrelationHeatmap from "./CorrelationHeatmap";
+import PortfolioBenchmarkChart from "./PortfolioBenchmarkChart";
 
 type Holding = {
   id: string;
@@ -386,6 +388,16 @@ export default function PortfolioTracker() {
       {/* Portfolio Allocation Chart — shown once there are holdings */}
       {holdings.length > 0 && (
         <PortfolioAllocationChart rows={rows} />
+      )}
+
+      {/* Portfolio Performance vs Benchmark — equity curve vs SPY */}
+      {holdings.length > 0 && (
+        <PortfolioBenchmarkChart holdings={holdings} prices={prices} />
+      )}
+
+      {/* Correlation Heatmap — shown when there are 2+ holdings */}
+      {holdings.length >= 2 && (
+        <CorrelationHeatmap holdings={holdings} prices={prices} />
       )}
 
       {/* Portfolio Risk Metrics — only shown when there are holdings with prices */}
