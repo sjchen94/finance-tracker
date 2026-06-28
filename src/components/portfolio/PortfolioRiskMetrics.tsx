@@ -86,7 +86,7 @@ export default function PortfolioRiskMetrics({
 
   useEffect(() => {
     if (activeTickers.length === 0) return;
-    setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
+    setLoading(true);  
 
     const allSymbols = [...new Set([...activeTickers, "SPY"])];
 

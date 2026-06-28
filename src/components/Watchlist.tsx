@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Sparkline from "@/components/momentum/Sparkline";
 
 type Quote = {
   symbol: string;
@@ -35,6 +36,7 @@ function loadInitialSymbols(): string[] {
 export default function Watchlist() {
   const [symbols, setSymbols] = useState<string[]>(loadInitialSymbols);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [sparklines, setSparklines] = useState<Record<string, number[]>>({});
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,16 @@ export default function Watchlist() {
       clearInterval(id);
     };
   }, [symbols]);
+
+  // Fetch 7-day sparklines for watchlist symbols (cached, refreshes when symbols change)
+  useEffect(() => {
+    if (symbols.length === 0) { setSparklines({}); return; }
+    fetch(`/api/sparkline?symbols=${encodeURIComponent(symbols.join(","))}`)
+      .then((r) => r.json())
+      .then((data: Record<string, number[]>) => setSparklines(data))
+      .catch(() => {/* decorative — ignore errors */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbols.join(",")]);
 
   function addSymbol(e: React.FormEvent) {
     e.preventDefault();
@@ -119,36 +131,33 @@ export default function Watchlist() {
         )}
         {quotes.map((q) => {
           const isUp = (q.change ?? 0) >= 0;
+          const closes = sparklines[q.symbol] ?? [];
           return (
-            <li key={q.symbol} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
+            <li key={q.symbol} className="flex items-center gap-3 px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
               <Link
                 href={`/ticker/${encodeURIComponent(q.symbol)}`}
-                className="flex flex-1 items-center gap-4 min-w-0 group"
+                className="flex flex-1 items-center gap-3 min-w-0 group"
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-mono text-sm font-semibold">{q.symbol}</div>
                   <div className="text-xs text-black/60 dark:text-white/60 truncate">{q.shortName}</div>
                 </div>
-                <div className="text-right">
+                {/* 7-day sparkline */}
+                <Sparkline closes={closes} width={56} height={24} />
+                <div className="text-right shrink-0">
                   <div className="font-mono text-sm">
-                    {q.price !== null ? q.price.toFixed(2) : "—"} {q.currency}
+                    {q.price !== null ? q.price.toFixed(2) : "—"}
                   </div>
                   <div className={`font-mono text-xs ${isUp ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                    {q.change !== null && q.changePercent !== null
-                      ? `${isUp ? "+" : ""}${q.change.toFixed(2)} (${isUp ? "+" : ""}${q.changePercent.toFixed(2)}%)`
+                    {q.changePercent !== null
+                      ? `${isUp ? "+" : ""}${q.changePercent.toFixed(2)}%`
                       : "—"}
                   </div>
                 </div>
-                <span
-                  className="ml-2 hidden sm:inline-flex items-center gap-1 rounded-md border border-black/10 dark:border-white/15 px-2 py-1 text-xs text-black/70 dark:text-white/70 group-hover:bg-black/5 dark:group-hover:bg-white/5"
-                  aria-hidden
-                >
-                  Chart →
-                </span>
               </Link>
               <button
                 onClick={() => removeSymbol(q.symbol)}
-                className="text-xs text-black/40 hover:text-red-500 dark:text-white/40"
+                className="text-xs text-black/40 hover:text-red-500 dark:text-white/40 shrink-0"
                 aria-label={`Remove ${q.symbol}`}
               >
                 ✕

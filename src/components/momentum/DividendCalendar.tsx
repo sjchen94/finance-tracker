@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { DividendTicker, DividendsResponse } from "@/app/api/dividends/route";
+import type { DividendsResponse } from "@/app/api/dividends/route";
 
 // Days until a date (negative = past)
 function daysUntil(dateStr: string): number {
