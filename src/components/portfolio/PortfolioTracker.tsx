@@ -7,6 +7,7 @@ import PortfolioInsight from "./PortfolioInsight";
 import ScenarioEditor from "./ScenarioEditor";
 import CorrelationHeatmap from "./CorrelationHeatmap";
 import PortfolioBenchmarkChart from "./PortfolioBenchmarkChart";
+import GoalTracker from "./GoalTracker";
 
 type Holding = {
   id: string;
@@ -403,6 +404,11 @@ export default function PortfolioTracker() {
       {/* Portfolio Risk Metrics — only shown when there are holdings with prices */}
       {holdings.length > 0 && (
         <PortfolioRiskMetrics holdings={holdings} prices={prices} />
+      )}
+
+      {/* Goal Tracker — projected time-to-target under multiple growth scenarios */}
+      {holdings.length > 0 && (
+        <GoalTracker holdings={holdings} prices={prices} totalValue={totalValue} />
       )}
 
       {/* AI Portfolio Digest — auto-fetches on load when live prices are available */}

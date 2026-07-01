@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { MarketQuote } from "./types";
 import { formatPct } from "./types";
+import type { MacroBundle, MacroQuote } from "@/app/api/macro/route";
 
 function marketStatus(now: Date): { label: string; color: string } {
   // NYSE hours ~9:30am – 4:00pm ET, Mon–Fri
@@ -46,6 +48,77 @@ function QuotePill({ q, label }: { q: MarketQuote; label: string }) {
   );
 }
 
+/** Pill for a macro indicator quote. `redAbove` optionally flags the price red when it exceeds a threshold. */
+function MacroPill({
+  q,
+  label,
+  redAbove,
+  suffix = "",
+}: {
+  q: MacroQuote | null | undefined;
+  label: string;
+  redAbove?: number;
+  suffix?: string;
+}) {
+  const change = q?.changePercent ?? null;
+  const up = (change ?? 0) >= 0;
+  const priceHot = redAbove != null && q?.price != null && q.price > redAbove;
+  return (
+    <div
+      className="flex items-baseline gap-2 rounded-md border border-black/10 bg-white px-3 py-1.5 dark:border-white/10 dark:bg-zinc-900"
+      title={label}
+    >
+      <span className="font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
+      <span
+        className={`font-mono text-sm ${
+          priceHot ? "text-red-600 dark:text-red-400 font-semibold" : ""
+        }`}
+      >
+        {q?.price != null ? `${q.price.toFixed(2)}${suffix}` : "—"}
+      </span>
+      <span
+        className={`font-mono text-xs ${
+          change == null
+            ? "text-zinc-500"
+            : up
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-red-600 dark:text-red-400"
+        }`}
+      >
+        {formatPct(change)}
+      </span>
+    </div>
+  );
+}
+
+const MACRO_REFRESH_MS = 30 * 60_000;
+
+function useMacroBundle(): MacroBundle | null {
+  const [macro, setMacro] = useState<MacroBundle | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/macro");
+        if (!res.ok) return;
+        const data = (await res.json()) as MacroBundle;
+        if (!cancelled) setMacro(data);
+      } catch {
+        /* silently ignore — pills just show — */
+      }
+    }
+    void load();
+    const id = setInterval(() => void load(), MACRO_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  return macro;
+}
+
 export default function HeaderBar(props: {
   spy: MarketQuote;
   qqq: MarketQuote;
@@ -55,6 +128,7 @@ export default function HeaderBar(props: {
   onRefresh: () => void;
 }) {
   const status = marketStatus(new Date());
+  const macro = useMacroBundle();
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-zinc-900/40">
       <div className="flex items-center gap-2">
@@ -66,6 +140,9 @@ export default function HeaderBar(props: {
         <QuotePill q={props.spy} label="SPY" />
         <QuotePill q={props.qqq} label="QQQ" />
         <QuotePill q={props.vix} label="VIX" />
+        <MacroPill q={macro?.tenYear} label="10Y" redAbove={4.5} suffix="%" />
+        <MacroPill q={macro?.dxy} label="DXY" />
+        <MacroPill q={macro?.tBill} label="T-Bill" suffix="%" />
       </div>
 
       <div className="flex items-center gap-3">
