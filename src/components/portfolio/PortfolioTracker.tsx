@@ -8,6 +8,8 @@ import ScenarioEditor from "./ScenarioEditor";
 import CorrelationHeatmap from "./CorrelationHeatmap";
 import PortfolioBenchmarkChart from "./PortfolioBenchmarkChart";
 import GoalTracker from "./GoalTracker";
+import PriceAlerts from "./PriceAlerts";
+import DividendIncomeTracker from "./DividendIncomeTracker";
 
 type Holding = {
   id: string;
@@ -410,6 +412,14 @@ export default function PortfolioTracker() {
       {holdings.length > 0 && (
         <GoalTracker holdings={holdings} prices={prices} totalValue={totalValue} />
       )}
+
+      {/* Dividend Income Tracker — projected annual/monthly income from actual holdings */}
+      {holdings.length > 0 && (
+        <DividendIncomeTracker holdings={holdings} totalValue={totalValue} />
+      )}
+
+      {/* Price Alerts — target-price notifications per holding */}
+      {holdings.length > 0 && <PriceAlerts holdings={holdings} prices={prices} />}
 
       {/* AI Portfolio Digest — auto-fetches on load when live prices are available */}
       {holdings.length > 0 && (
