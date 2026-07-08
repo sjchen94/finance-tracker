@@ -35,10 +35,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "no valid symbols" }, { status: 400 });
   }
 
-  const results = (await yahooFinance.quote(symbols)) as unknown as
-    | RawQuote
-    | RawQuote[];
-  const list: RawQuote[] = Array.isArray(results) ? results : [results];
+  // Fetch the whole batch first; if Yahoo rejects the batch outright (e.g. one
+  // invalid/delisted symbol in the list), fall back to per-symbol requests so a
+  // single bad ticker doesn't 500 out quotes for the rest of the watchlist.
+  let list: RawQuote[];
+  try {
+    const results = (await yahooFinance.quote(symbols)) as unknown as
+      | RawQuote
+      | RawQuote[];
+    list = Array.isArray(results) ? results : [results];
+  } catch {
+    const settled = await Promise.allSettled(
+      symbols.map((s) => yahooFinance.quote(s) as unknown as Promise<RawQuote>),
+    );
+    list = settled
+      .filter((r): r is PromiseFulfilledResult<RawQuote> => r.status === "fulfilled")
+      .map((r) => r.value);
+  }
 
   const quotes = list.map((q) => ({
     symbol: q.symbol,
@@ -51,5 +64,9 @@ export async function GET(req: NextRequest) {
     exchange: q.fullExchangeName ?? q.exchange ?? null,
   }));
 
-  return NextResponse.json({ quotes });
+  const failedSymbols = symbols.filter(
+    (s) => !quotes.some((q) => q.symbol === s),
+  );
+
+  return NextResponse.json({ quotes, failedSymbols });
 }

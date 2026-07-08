@@ -17,6 +17,7 @@ type Quote = {
 
 const STORAGE_KEY = "finance-tracker:watchlist";
 const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA"];
+const SYMBOL_RE = /^[A-Z0-9.\-=^]+$/;
 
 function loadInitialSymbols(): string[] {
   if (typeof window === "undefined") return DEFAULT_SYMBOLS;
@@ -40,6 +41,8 @@ export default function Watchlist() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [failedSymbols, setFailedSymbols] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -61,6 +64,7 @@ export default function Watchlist() {
         const data = await res.json();
         if (cancelled) return;
         setQuotes(data.quotes ?? []);
+        setFailedSymbols(data.failedSymbols ?? []);
         setUpdatedAt(new Date());
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "fetch failed");
@@ -89,9 +93,18 @@ export default function Watchlist() {
 
   function addSymbol(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
     const next = input.trim().toUpperCase();
     if (!next) return;
-    if (!symbols.includes(next)) setSymbols([...symbols, next]);
+    if (!SYMBOL_RE.test(next)) {
+      setFormError(`"${next}" doesn't look like a valid ticker symbol`);
+      return;
+    }
+    if (symbols.includes(next)) {
+      setFormError(`${next} is already on your watchlist`);
+      return;
+    }
+    setSymbols([...symbols, next]);
     setInput("");
   }
 
@@ -103,10 +116,13 @@ export default function Watchlist() {
 
   return (
     <div className="w-full max-w-3xl">
-      <form onSubmit={addSymbol} className="flex gap-2 mb-6">
+      <form onSubmit={addSymbol} className="flex gap-2 mb-2">
         <input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            if (formError) setFormError(null);
+          }}
           placeholder="Add ticker (e.g. AMZN)"
           className="flex-1 rounded-md border border-black/10 dark:border-white/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 dark:focus:border-white/40"
         />
@@ -118,10 +134,19 @@ export default function Watchlist() {
         </button>
       </form>
 
+      <p className="mb-4 min-h-[1em] text-xs text-red-500">{formError ?? ""}</p>
+
       <div className="flex items-center justify-between mb-3 text-xs text-black/60 dark:text-white/60">
         <span>{loading ? "Refreshing…" : updatedAt ? `Updated ${updatedAt.toLocaleTimeString()}` : ""}</span>
         {error && <span className="text-red-500">{error}</span>}
       </div>
+
+      {failedSymbols.length > 0 && (
+        <div className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          Couldn&apos;t fetch quotes for: {failedSymbols.join(", ")}. The symbol may be
+          invalid or delisted.
+        </div>
+      )}
 
       <ul className="divide-y divide-black/10 dark:divide-white/15 rounded-lg border border-black/10 dark:border-white/15">
         {quotes.length === 0 && !loading && (

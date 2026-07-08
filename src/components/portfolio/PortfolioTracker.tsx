@@ -111,6 +111,12 @@ export default function PortfolioTracker() {
   const [costBasis, setCostBasis] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editShares, setEditShares] = useState("");
+  const [editCostBasis, setEditCostBasis] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+
   // Load from localStorage on mount
   useEffect(() => {
     setHoldings(loadHoldings());
@@ -182,6 +188,40 @@ export default function PortfolioTracker() {
     const updated = holdings.filter((h) => h.id !== id);
     setHoldings(updated);
     saveHoldings(updated);
+    if (editingId === id) setEditingId(null);
+  }
+
+  function startEdit(h: Holding) {
+    setEditingId(h.id);
+    setEditShares(String(h.shares));
+    setEditCostBasis(String(h.costBasis));
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError(null);
+  }
+
+  function saveEdit(e: React.FormEvent, id: string) {
+    e.preventDefault();
+    const sharesNum = parseFloat(editShares);
+    const costNum = parseFloat(editCostBasis);
+    if (!Number.isFinite(sharesNum) || sharesNum <= 0) {
+      setEditError("Shares must be a positive number");
+      return;
+    }
+    if (!Number.isFinite(costNum) || costNum <= 0) {
+      setEditError("Cost basis must be a positive number");
+      return;
+    }
+    const updated = holdings.map((h) =>
+      h.id === id ? { ...h, shares: sharesNum, costBasis: costNum } : h,
+    );
+    setHoldings(updated);
+    saveHoldings(updated);
+    setEditingId(null);
+    setEditError(null);
   }
 
   // Compute totals
@@ -302,6 +342,64 @@ export default function PortfolioTracker() {
               <tbody className="divide-y divide-black/10 dark:divide-white/10">
                 {rows.map((row) => {
                   const pnlUp = (row.pnl ?? 0) >= 0;
+                  const isEditing = editingId === row.id;
+
+                  if (isEditing) {
+                    return (
+                      <tr key={row.id} className="bg-zinc-50 dark:bg-zinc-900/40">
+                        <td colSpan={8} className="px-4 py-2.5">
+                          <form
+                            onSubmit={(e) => saveEdit(e, row.id)}
+                            className="flex flex-wrap items-end gap-3"
+                          >
+                            <div className="font-mono text-sm font-semibold">{row.ticker}</div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs text-zinc-500">Shares</label>
+                              <input
+                                type="number"
+                                value={editShares}
+                                onChange={(e) => setEditShares(e.target.value)}
+                                min="0.0001"
+                                step="any"
+                                autoFocus
+                                className="w-28 rounded border border-black/20 bg-white px-2 py-1 font-mono text-xs dark:border-white/20 dark:bg-zinc-800"
+                                required
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs text-zinc-500">Avg Cost / share ($)</label>
+                              <input
+                                type="number"
+                                value={editCostBasis}
+                                onChange={(e) => setEditCostBasis(e.target.value)}
+                                min="0.0001"
+                                step="any"
+                                className="w-32 rounded border border-black/20 bg-white px-2 py-1 font-mono text-xs dark:border-white/20 dark:bg-zinc-800"
+                                required
+                              />
+                            </div>
+                            <button
+                              type="submit"
+                              className="rounded-md bg-zinc-800 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEdit}
+                              className="rounded-md border border-black/15 px-3 py-1 text-xs text-zinc-600 hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            >
+                              Cancel
+                            </button>
+                            {editError && (
+                              <p className="w-full text-xs text-red-600 dark:text-red-400">{editError}</p>
+                            )}
+                          </form>
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   return (
                     <tr key={row.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
                       <td className="px-4 py-2.5 font-mono font-semibold">{row.ticker}</td>
@@ -335,7 +433,14 @@ export default function PortfolioTracker() {
                       >
                         {row.pnlPct != null ? fmtPct(row.pnlPct) : "—"}
                       </td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => startEdit(row)}
+                          className="mr-2 text-xs text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                          title="Edit holding"
+                        >
+                          ✎
+                        </button>
                         <button
                           onClick={() => removeHolding(row.id)}
                           className="text-xs text-zinc-400 hover:text-red-500"
