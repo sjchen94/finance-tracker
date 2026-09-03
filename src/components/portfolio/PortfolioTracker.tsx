@@ -10,6 +10,8 @@ import PortfolioBenchmarkChart from "./PortfolioBenchmarkChart";
 import GoalTracker from "./GoalTracker";
 import PriceAlerts from "./PriceAlerts";
 import DividendIncomeTracker from "./DividendIncomeTracker";
+import TaxLossHarvesting from "./TaxLossHarvesting";
+import FactorExposureChart from "./FactorExposureChart";
 
 type Holding = {
   id: string;
@@ -508,9 +510,19 @@ export default function PortfolioTracker() {
         <CorrelationHeatmap holdings={holdings} prices={prices} />
       )}
 
+      {/* Factor / Style Exposure — portfolio beta vs value/growth/momentum/small-cap ETFs */}
+      {holdings.length > 0 && (
+        <FactorExposureChart holdings={holdings} prices={prices} />
+      )}
+
       {/* Portfolio Risk Metrics — only shown when there are holdings with prices */}
       {holdings.length > 0 && (
         <PortfolioRiskMetrics holdings={holdings} prices={prices} />
+      )}
+
+      {/* Tax-Loss Harvesting Scanner — flags positions down > threshold from cost basis */}
+      {holdings.length > 0 && (
+        <TaxLossHarvesting holdings={holdings} prices={prices} />
       )}
 
       {/* Goal Tracker — projected time-to-target under multiple growth scenarios */}
