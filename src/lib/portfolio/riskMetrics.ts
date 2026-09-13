@@ -78,6 +78,26 @@ export function computeVolatility(closes: number[]): number | null {
 }
 
 /**
+ * Compute rolling annualised volatility over a trailing window of `windowDays`
+ * trading days. Each output point is the annualised stddev of the log-returns
+ * within the trailing window ending at that index.
+ *
+ * Output length is `max(0, closes.length - windowDays)`. Windows with
+ * degenerate variance (all identical prices) contribute 0.
+ */
+export function rollingVolatility(closes: number[], windowDays: number): number[] {
+  if (windowDays < 2 || closes.length <= windowDays) return [];
+  const returns = logReturns(closes);
+  if (returns.length < windowDays) return [];
+  const out: number[] = [];
+  for (let i = windowDays; i <= returns.length; i++) {
+    const window = returns.slice(i - windowDays, i);
+    out.push(stddev(window) * Math.sqrt(252));
+  }
+  return out;
+}
+
+/**
  * Compute Sharpe ratio using annualised returns vs a 5% risk-free rate.
  * Returns null when there are fewer than 5 data points.
  */
