@@ -17,10 +17,6 @@ export default function Sparkline({ closes, width = 72, height = 28 }: Sparkline
     const el = containerRef.current;
     if (!el || closes.length < 2) return;
 
-    const isDark =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-
     const first = closes[0]!;
     const last = closes[closes.length - 1]!;
     const up = last >= first;

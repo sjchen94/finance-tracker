@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Sparkline from "@/components/momentum/Sparkline";
 
 type Quote = {
   symbol: string;
@@ -16,6 +17,7 @@ type Quote = {
 
 const STORAGE_KEY = "finance-tracker:watchlist";
 const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA"];
+const SYMBOL_RE = /^[A-Z0-9.\-=^]+$/;
 
 function loadInitialSymbols(): string[] {
   if (typeof window === "undefined") return DEFAULT_SYMBOLS;
@@ -35,9 +37,12 @@ function loadInitialSymbols(): string[] {
 export default function Watchlist() {
   const [symbols, setSymbols] = useState<string[]>(loadInitialSymbols);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [sparklines, setSparklines] = useState<Record<string, number[]>>({});
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [failedSymbols, setFailedSymbols] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -59,6 +64,7 @@ export default function Watchlist() {
         const data = await res.json();
         if (cancelled) return;
         setQuotes(data.quotes ?? []);
+        setFailedSymbols(data.failedSymbols ?? []);
         setUpdatedAt(new Date());
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "fetch failed");
@@ -75,11 +81,30 @@ export default function Watchlist() {
     };
   }, [symbols]);
 
+  // Fetch 7-day sparklines for watchlist symbols (cached, refreshes when symbols change)
+  useEffect(() => {
+    if (symbols.length === 0) { setSparklines({}); return; }
+    fetch(`/api/sparkline?symbols=${encodeURIComponent(symbols.join(","))}`)
+      .then((r) => r.json())
+      .then((data: Record<string, number[]>) => setSparklines(data))
+      .catch(() => {/* decorative — ignore errors */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbols.join(",")]);
+
   function addSymbol(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
     const next = input.trim().toUpperCase();
     if (!next) return;
-    if (!symbols.includes(next)) setSymbols([...symbols, next]);
+    if (!SYMBOL_RE.test(next)) {
+      setFormError(`"${next}" doesn't look like a valid ticker symbol`);
+      return;
+    }
+    if (symbols.includes(next)) {
+      setFormError(`${next} is already on your watchlist`);
+      return;
+    }
+    setSymbols([...symbols, next]);
     setInput("");
   }
 
@@ -91,10 +116,13 @@ export default function Watchlist() {
 
   return (
     <div className="w-full max-w-3xl">
-      <form onSubmit={addSymbol} className="flex gap-2 mb-6">
+      <form onSubmit={addSymbol} className="flex gap-2 mb-2">
         <input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            if (formError) setFormError(null);
+          }}
           placeholder="Add ticker (e.g. AMZN)"
           className="flex-1 rounded-md border border-black/10 dark:border-white/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 dark:focus:border-white/40"
         />
@@ -106,10 +134,19 @@ export default function Watchlist() {
         </button>
       </form>
 
+      <p className="mb-4 min-h-[1em] text-xs text-red-500">{formError ?? ""}</p>
+
       <div className="flex items-center justify-between mb-3 text-xs text-black/60 dark:text-white/60">
         <span>{loading ? "Refreshing…" : updatedAt ? `Updated ${updatedAt.toLocaleTimeString()}` : ""}</span>
         {error && <span className="text-red-500">{error}</span>}
       </div>
+
+      {failedSymbols.length > 0 && (
+        <div className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          Couldn&apos;t fetch quotes for: {failedSymbols.join(", ")}. The symbol may be
+          invalid or delisted.
+        </div>
+      )}
 
       <ul className="divide-y divide-black/10 dark:divide-white/15 rounded-lg border border-black/10 dark:border-white/15">
         {quotes.length === 0 && !loading && (
@@ -119,36 +156,33 @@ export default function Watchlist() {
         )}
         {quotes.map((q) => {
           const isUp = (q.change ?? 0) >= 0;
+          const closes = sparklines[q.symbol] ?? [];
           return (
-            <li key={q.symbol} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
+            <li key={q.symbol} className="flex items-center gap-3 px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
               <Link
                 href={`/ticker/${encodeURIComponent(q.symbol)}`}
-                className="flex flex-1 items-center gap-4 min-w-0 group"
+                className="flex flex-1 items-center gap-3 min-w-0 group"
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-mono text-sm font-semibold">{q.symbol}</div>
                   <div className="text-xs text-black/60 dark:text-white/60 truncate">{q.shortName}</div>
                 </div>
-                <div className="text-right">
+                {/* 7-day sparkline */}
+                <Sparkline closes={closes} width={56} height={24} />
+                <div className="text-right shrink-0">
                   <div className="font-mono text-sm">
-                    {q.price !== null ? q.price.toFixed(2) : "—"} {q.currency}
+                    {q.price !== null ? q.price.toFixed(2) : "—"}
                   </div>
                   <div className={`font-mono text-xs ${isUp ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                    {q.change !== null && q.changePercent !== null
-                      ? `${isUp ? "+" : ""}${q.change.toFixed(2)} (${isUp ? "+" : ""}${q.changePercent.toFixed(2)}%)`
+                    {q.changePercent !== null
+                      ? `${isUp ? "+" : ""}${q.changePercent.toFixed(2)}%`
                       : "—"}
                   </div>
                 </div>
-                <span
-                  className="ml-2 hidden sm:inline-flex items-center gap-1 rounded-md border border-black/10 dark:border-white/15 px-2 py-1 text-xs text-black/70 dark:text-white/70 group-hover:bg-black/5 dark:group-hover:bg-white/5"
-                  aria-hidden
-                >
-                  Chart →
-                </span>
               </Link>
               <button
                 onClick={() => removeSymbol(q.symbol)}
-                className="text-xs text-black/40 hover:text-red-500 dark:text-white/40"
+                className="text-xs text-black/40 hover:text-red-500 dark:text-white/40 shrink-0"
                 aria-label={`Remove ${q.symbol}`}
               >
                 ✕
